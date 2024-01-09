@@ -1,6 +1,6 @@
 use std::iter::Peekable;
 
-#[derive(PartialEq, Debug)]
+#[derive(Debug)]
 pub enum Message {
     SimpleString(String),
     Error(String),
@@ -8,6 +8,30 @@ pub enum Message {
     BulkString(String),
     Array(Vec<Message>),
     Null,
+}
+
+impl PartialEq for Message {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::SimpleString(left), Self::SimpleString(right)) => left == right,
+            (Self::Error(left), Self::Error(right)) => left == right,
+            (Self::Integer(left), Self::Integer(right)) => left == right,
+            (Self::BulkString(left), Self::BulkString(right)) => left == right,
+            (Self::Array(left), Self::Array(right)) => {
+                if left.len() != right.len() {
+                    return false;
+                }
+                for idx in 0..left.len() {
+                    if left[idx] != right[idx] {
+                        return false;
+                    }
+                }
+                true
+            }
+            (Self::Null, Self::Null) => true,
+            _ => false,
+        }
+    }
 }
 
 impl Message {
@@ -23,7 +47,22 @@ impl Message {
             return Err(String::from("Empty message!"));
         }
 
-        let message = match tokens.next().unwrap() {
+        let message = match Message::parse_message(tokens) {
+            Ok(message) => message,
+            Err(err) => return Err(err),
+        };
+
+        if tokens.next().is_some() {
+            Err(String::from("Invalid Message!!"))
+        } else {
+            Ok(message)
+        }
+    }
+
+    fn parse_message<I: Iterator<Item = char>>(
+        tokens: &mut Peekable<I>,
+    ) -> Result<Message, String> {
+        match tokens.next().unwrap() {
             '+' => match Message::parse_simple_string(tokens) {
                 Ok(string) => Ok(Message::SimpleString(string)),
                 Err(err) => Err(err),
@@ -51,12 +90,6 @@ impl Message {
                 Err(err) => Err(err),
             },
             _ => return Err(String::from("Invalid Data Type!!")),
-        };
-
-        if tokens.next().is_some() {
-            Err(String::from("Invalid Message!!"))
-        } else {
-            message
         }
     }
 
@@ -140,8 +173,24 @@ impl Message {
     fn parse_arrays<I: Iterator<Item = char>>(
         tokens: &mut Peekable<I>,
     ) -> Result<Vec<Message>, String> {
-        while let Some(_) = tokens.next() {}
-        Ok(vec![])
+        let len = match Message::get_argument(tokens) {
+            Some(arg) => match arg.parse::<usize>() {
+                Ok(len) => len,
+                Err(_) => return Err(String::from("Invalid array length!")),
+            },
+            None => return Err(String::from("Invalid array length!")),
+        };
+
+        let mut array: Vec<Message> = Vec::with_capacity(len);
+
+        for _ in 0..len {
+            match Message::parse_message(tokens) {
+                Ok(message) => array.push(message),
+                Err(err) => return Err(err),
+            }
+        }
+
+        Ok(array)
     }
 }
 
@@ -152,28 +201,34 @@ mod tests {
     #[test]
     fn null_bulk_string() {
         let message = String::from("$-1\\r\\n");
-        assert_eq!(
-            Message::new(message),
-            Ok(Message::Null)
-        );
+        assert_eq!(Message::new(message), Ok(Message::Null));
     }
 
     #[test]
     fn one_element_array() {
         let message = String::from("*1\\r\\n$4\\r\\nping\\r\\n");
-        assert_eq!(Message::new(message), Ok(Message::Array(vec![])));
+        let should_be = Message::Array(vec![Message::BulkString(String::from("ping"))]);
+        assert_eq!(Message::new(message), Ok(should_be));
     }
 
     #[test]
     fn two_elements_array() {
         let message = String::from("*2\\r\\n$4\\r\\necho\\r\\n$11\\r\\nhello world\\r\\n");
-        assert_eq!(Message::new(message), Ok(Message::Array(vec![])));
+        let should_be = Message::Array(vec![
+            Message::BulkString(String::from("echo")),
+            Message::BulkString(String::from("hello world")),
+        ]);
+        assert_eq!(Message::new(message), Ok(should_be));
     }
 
     #[test]
     fn another_two_elements_array() {
         let message = String::from("*2\\r\\n$3\\r\\nget\\r\\n$3\\r\\nkey\\r\\n");
-        assert_eq!(Message::new(message), Ok(Message::Array(vec![])));
+        let should_be = Message::Array(vec![
+            Message::BulkString(String::from("get")),
+            Message::BulkString(String::from("key")),
+        ]);
+        assert_eq!(Message::new(message), Ok(should_be));
     }
 
     #[test]
