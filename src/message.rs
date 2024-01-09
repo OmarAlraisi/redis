@@ -27,7 +27,7 @@ impl Message {
                 Ok(string) => Ok(Message::SimpleString(string)),
                 Err(err) => Err(err),
             },
-            '-' => match Message::parse_error(tokens) {
+            '-' => match Message::parse_simple_string(tokens) {
                 Ok(error) => Ok(Message::Error(error)),
                 Err(err) => Err(err),
             },
@@ -93,14 +93,14 @@ impl Message {
         }
     }
 
-    fn parse_error<I: Iterator<Item = char>>(tokens: &mut Peekable<I>) -> Result<String, String> {
-        while let Some(_) = tokens.next() {}
-        Ok(String::from("Error"))
-    }
-
     fn parse_integer<I: Iterator<Item = char>>(tokens: &mut Peekable<I>) -> Result<i32, String> {
-        while let Some(_) = tokens.next() {}
-        Ok(101)
+        match Message::get_argument(tokens) {
+            Some(argument) => match argument.parse::<i32>() {
+                Ok(integer) => Ok(integer),
+                Err(_) => Err(String::from("Invalid integer!")),
+            },
+            None => Err(String::from("Invalid integer!")),
+        }
     }
 
     fn parse_bulk_string<I: Iterator<Item = char>>(
@@ -163,7 +163,7 @@ mod tests {
         let message = String::from("-Error message\\r\\n");
         assert_eq!(
             Message::new(message),
-            Ok(Message::Error(String::from("Error")))
+            Ok(Message::Error(String::from("Error message")))
         );
     }
 
@@ -188,7 +188,7 @@ mod tests {
     #[test]
     fn integer() {
         let message = String::from(":19\\r\\n");
-        assert_eq!(Message::new(message), Ok(Message::Integer(101)));
+        assert_eq!(Message::new(message), Ok(Message::Integer(19)));
     }
 
     #[test]
@@ -200,9 +200,9 @@ mod tests {
         );
     }
 
-    //     #[test]
-    //     fn invalid_integer() {
-    //         let message = String::from(":Hello world\\r\\n");
-    //         assert_eq!(Message::new(message), "Not an integer!!");
-    //     }
+    #[test]
+    fn invalid_integer() {
+        let message = String::from(":Hello world\\r\\n");
+        assert_eq!(Message::new(message), Err(String::from("Invalid integer!")));
+    }
 }
