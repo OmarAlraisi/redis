@@ -97,21 +97,16 @@ impl Message {
         let mut argument = String::new();
         while let Some(ch) = tokens.next() {
             match ch {
-                '\\' => {
-                    let mut escaping = String::from("\\");
-                    for _ in 0..3 {
-                        match tokens.next() {
-                            Some(ch) => escaping.push(ch),
-                            None => return None,
+                '\r' => match tokens.next() {
+                    Some(ch) => {
+                        if ch == '\n' {
+                            return Some(argument);
+                        } else {
+                            return None;
                         }
                     }
-
-                    if escaping != "\\r\\n" {
-                        return None;
-                    }
-
-                    return Some(argument);
-                }
+                    None => return None,
+                },
                 _ => argument.push(ch),
             }
         }
@@ -200,20 +195,20 @@ mod tests {
 
     #[test]
     fn null_bulk_string() {
-        let message = String::from("$-1\\r\\n");
+        let message = String::from("$-1\r\n");
         assert_eq!(Message::new(message), Ok(Message::Null));
     }
 
     #[test]
     fn one_element_array() {
-        let message = String::from("*1\\r\\n$4\\r\\nping\\r\\n");
+        let message = String::from("*1\r\n$4\r\nping\r\n");
         let should_be = Message::Array(vec![Message::BulkString(String::from("ping"))]);
         assert_eq!(Message::new(message), Ok(should_be));
     }
 
     #[test]
     fn two_elements_array() {
-        let message = String::from("*2\\r\\n$4\\r\\necho\\r\\n$11\\r\\nhello world\\r\\n");
+        let message = String::from("*2\r\n$4\r\necho\r\n$11\r\nhello world\r\n");
         let should_be = Message::Array(vec![
             Message::BulkString(String::from("echo")),
             Message::BulkString(String::from("hello world")),
@@ -223,7 +218,7 @@ mod tests {
 
     #[test]
     fn another_two_elements_array() {
-        let message = String::from("*2\\r\\n$3\\r\\nget\\r\\n$3\\r\\nkey\\r\\n");
+        let message = String::from("*2\r\n$3\r\nget\r\n$3\r\nkey\r\n");
         let should_be = Message::Array(vec![
             Message::BulkString(String::from("get")),
             Message::BulkString(String::from("key")),
@@ -233,7 +228,7 @@ mod tests {
 
     #[test]
     fn simple_string() {
-        let message = String::from("+OK\\r\\n");
+        let message = String::from("+OK\r\n");
         assert_eq!(
             Message::new(message),
             Ok(Message::SimpleString(String::from("OK")))
@@ -242,7 +237,7 @@ mod tests {
 
     #[test]
     fn error() {
-        let message = String::from("-Error message\\r\\n");
+        let message = String::from("-Error message\r\n");
         assert_eq!(
             Message::new(message),
             Ok(Message::Error(String::from("Error message")))
@@ -251,7 +246,7 @@ mod tests {
 
     #[test]
     fn empty_bulk_string() {
-        let message = String::from("$0\\r\\n\\r\\n");
+        let message = String::from("$0\r\n\r\n");
         assert_eq!(
             Message::new(message),
             Ok(Message::BulkString(String::from("")))
@@ -260,7 +255,7 @@ mod tests {
 
     #[test]
     fn another_simple_string() {
-        let message = String::from("+hello world\\r\\n");
+        let message = String::from("+hello world\r\n");
         assert_eq!(
             Message::new(message),
             Ok(Message::SimpleString(String::from("hello world")))
@@ -269,13 +264,13 @@ mod tests {
 
     #[test]
     fn integer() {
-        let message = String::from(":19\\r\\n");
+        let message = String::from(":19\r\n");
         assert_eq!(Message::new(message), Ok(Message::Integer(19)));
     }
 
     #[test]
     fn invalid_data_type() {
-        let message = String::from("#19\\r\\n");
+        let message = String::from("#19\r\n");
         assert_eq!(
             Message::new(message),
             Err(String::from("Invalid Data Type!!"))
@@ -284,7 +279,7 @@ mod tests {
 
     #[test]
     fn invalid_integer() {
-        let message = String::from(":Hello world\\r\\n");
+        let message = String::from(":Hello world\r\n");
         assert_eq!(Message::new(message), Err(String::from("Invalid integer!")));
     }
 }
