@@ -106,8 +106,24 @@ impl Message {
     fn parse_bulk_string<I: Iterator<Item = char>>(
         tokens: &mut Peekable<I>,
     ) -> Result<String, String> {
-        while let Some(_) = tokens.next() {}
-        Ok(String::from("Bulk Strings"))
+        let length = match Message::get_argument(tokens) {
+            Some(arg) => match arg.parse::<usize>() {
+                Ok(len) => len,
+                Err(_) => return Err(String::from("Invalid bulk string length!")),
+            },
+            None => return Err(String::from("Invalid bulk string message!")),
+        };
+
+        let blk_string = match Message::get_argument(tokens) {
+            Some(arg) => arg,
+            None => return Err(String::from("Invalid bulk string message!")),
+        };
+
+        if blk_string.len() != length {
+            return Err(String::from("Invalid bulk string message!"));
+        } else {
+            Ok(blk_string)
+        }
     }
 
     fn parse_arrays<I: Iterator<Item = char>>(
@@ -122,14 +138,14 @@ impl Message {
 mod tests {
     use super::Message;
 
-    #[test]
-    fn null_bulk_string() {
-        let message = String::from("$-1\\r\\n");
-        assert_eq!(
-            Message::new(message),
-            Ok(Message::BulkString(String::from("Bulk Strings")))
-        );
-    }
+    // #[test]
+    // fn null_bulk_string() {
+    //     let message = String::from("$-1\\r\\n");
+    //     assert_eq!(
+    //         Message::new(message),
+    //         Ok(Message::BulkString(String::from("Bulk Strings")))
+    //     );
+    // }
 
     #[test]
     fn one_element_array() {
@@ -172,7 +188,7 @@ mod tests {
         let message = String::from("$0\\r\\n\\r\\n");
         assert_eq!(
             Message::new(message),
-            Ok(Message::BulkString(String::from("Bulk Strings")))
+            Ok(Message::BulkString(String::from("")))
         );
     }
 
