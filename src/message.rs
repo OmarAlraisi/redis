@@ -7,6 +7,7 @@ pub enum Message {
     Integer(i32),
     BulkString(String),
     Array(Vec<Message>),
+    Null,
 }
 
 impl Message {
@@ -37,7 +38,13 @@ impl Message {
             },
             '$' => match Message::parse_bulk_string(tokens) {
                 Ok(blkstr) => Ok(Message::BulkString(blkstr)),
-                Err(err) => Err(err),
+                Err(err) => {
+                    if err == String::from("NULL") {
+                        Ok(Message::Null)
+                    } else {
+                        Err(err)
+                    }
+                }
             },
             '*' => match Message::parse_arrays(tokens) {
                 Ok(array) => Ok(Message::Array(array)),
@@ -107,19 +114,23 @@ impl Message {
         tokens: &mut Peekable<I>,
     ) -> Result<String, String> {
         let length = match Message::get_argument(tokens) {
-            Some(arg) => match arg.parse::<usize>() {
+            Some(arg) => match arg.parse::<i32>() {
                 Ok(len) => len,
                 Err(_) => return Err(String::from("Invalid bulk string length!")),
             },
             None => return Err(String::from("Invalid bulk string message!")),
         };
 
+        if length == -1 {
+            return Err(String::from("NULL"));
+        }
+
         let blk_string = match Message::get_argument(tokens) {
             Some(arg) => arg,
             None => return Err(String::from("Invalid bulk string message!")),
         };
 
-        if blk_string.len() != length {
+        if blk_string.len() as i32 != length {
             return Err(String::from("Invalid bulk string message!"));
         } else {
             Ok(blk_string)
@@ -138,14 +149,14 @@ impl Message {
 mod tests {
     use super::Message;
 
-    // #[test]
-    // fn null_bulk_string() {
-    //     let message = String::from("$-1\\r\\n");
-    //     assert_eq!(
-    //         Message::new(message),
-    //         Ok(Message::BulkString(String::from("Bulk Strings")))
-    //     );
-    // }
+    #[test]
+    fn null_bulk_string() {
+        let message = String::from("$-1\\r\\n");
+        assert_eq!(
+            Message::new(message),
+            Ok(Message::Null)
+        );
+    }
 
     #[test]
     fn one_element_array() {
