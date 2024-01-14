@@ -28,7 +28,7 @@ impl DB {
                             ),
                             "set" => self.handle_set(iter.collect::<Vec<RESPData>>()),
                             "get" => self.handle_get(iter.collect::<Vec<RESPData>>()),
-                            "exists" => self.handle_ping(iter.collect::<Vec<RESPData>>()),
+                            "exists" => self.handle_exists(iter.collect::<Vec<RESPData>>()),
                             "del" => self.handle_ping(iter.collect::<Vec<RESPData>>()),
                             "incr" => self.handle_ping(iter.collect::<Vec<RESPData>>()),
                             "decr" => self.handle_ping(iter.collect::<Vec<RESPData>>()),
@@ -74,9 +74,11 @@ impl DB {
         }
     }
 
-    fn handle_get(&mut self, args: Vec<RESPData>) -> RESPData {
+    fn handle_get(&self, args: Vec<RESPData>) -> RESPData {
         if args.len() != 1 {
-            RESPData::Error(String::from("ERR wrong number of arguments for 'GET' command"))
+            RESPData::Error(String::from(
+                "ERR wrong number of arguments for 'GET' command",
+            ))
         } else {
             let key = match &args[0] {
                 RESPData::BulkString(key) => key.to_owned(),
@@ -88,6 +90,28 @@ impl DB {
                 None => RESPData::Null,
             }
         }
+    }
+
+    fn handle_exists(&self, args: Vec<RESPData>) -> RESPData {
+        if args.len() == 0 {
+            return RESPData::Error(String::from(
+                "ERR wrong number of arguments for 'EXISTS' command",
+            ));
+        }
+
+        let mut keys_exist = 0;
+        for key in args {
+            match key {
+                RESPData::BulkString(key) => {
+                    if self.db.get(&key).is_some() {
+                        keys_exist += 1;
+                    }
+                }
+                _ => return RESPData::Error(String::from("ERR syntax error.")),
+            }
+        }
+
+        RESPData::Integer(keys_exist)
     }
 
     fn handle_ping(&mut self, args: Vec<RESPData>) -> RESPData {
