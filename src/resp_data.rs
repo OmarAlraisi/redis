@@ -1,4 +1,4 @@
-use std::{iter::Peekable, fmt::Display};
+use std::{fmt::Display, iter::Peekable};
 
 #[derive(Debug)]
 pub enum RESPData {
@@ -15,7 +15,7 @@ impl Display for RESPData {
         match self {
             RESPData::SimpleString(val) => write!(f, "+{}\r\n", val),
             RESPData::Error(val) => write!(f, "-{}\r\n", val),
-            RESPData::Integer(val) => write!(f, ":{}\t\n", val),
+            RESPData::Integer(val) => write!(f, ":{}\r\n", val),
             RESPData::BulkString(val) => write!(f, "${}\r\n{}\r\n", val.len(), val),
             RESPData::Array(val) => {
                 let mut output = format!("*{}\r\n", val.len());
@@ -23,8 +23,8 @@ impl Display for RESPData {
                     output.push_str(format!("{}", entry).as_str());
                 }
                 write!(f, "{}", output)
-            },
-            RESPData::Null => write!(f, "$-1\r\n"),
+            }
+            RESPData::Null => write!(f, "_\r\n"),
         }
     }
 }
@@ -125,7 +125,7 @@ impl RESPData {
         };
 
         if length == -1 {
-            return RESPData::Error(String::from("NULL"));
+            return RESPData::Null;
         }
 
         let blk_string = match RESPData::get_argument(tokens) {

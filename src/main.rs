@@ -23,17 +23,8 @@ fn main() -> std::io::Result<()> {
         };
 
         let message_output = RESP::deserialize(message_input);
-
-        let simple_string = RESPData::SimpleString(String::from("Simple String"));
-        let error = RESPData::Error(String::from("Error"));
-        let integer = RESPData::Integer(100);
-        let bulk_string = RESPData::BulkString(String::from("Bulk Stirng"));
-        let array = RESPData::Array(vec![
-            RESPData::SimpleString(String::from("Element 1")),
-            RESPData::SimpleString(String::from("Element 2")),
-        ]);
         stream
-            .write(format!("{}", array).as_bytes())
+            .write(format!("{}", message_output).as_bytes())
             .unwrap();
 
         stream.shutdown(Shutdown::Both).unwrap();
