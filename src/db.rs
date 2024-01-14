@@ -18,17 +18,23 @@ impl DB {
                 match iter.next() {
                     Some(command) => match command {
                         RESPData::BulkString(command) => match command.to_lowercase().as_str() {
-                            "ping" => DB::handle_ping_echo(command.as_str(), iter.collect::<Vec<RESPData>>()),
-                            "echo" => DB::handle_ping_echo(command.as_str(), iter.collect::<Vec<RESPData>>()),
-                            "set" => DB::handle_ping(iter.collect::<Vec<RESPData>>()),
-                            "get" => DB::handle_ping(iter.collect::<Vec<RESPData>>()),
-                            "exists" => DB::handle_ping(iter.collect::<Vec<RESPData>>()),
-                            "del" => DB::handle_ping(iter.collect::<Vec<RESPData>>()),
-                            "incr" => DB::handle_ping(iter.collect::<Vec<RESPData>>()),
-                            "decr" => DB::handle_ping(iter.collect::<Vec<RESPData>>()),
-                            "lpush" => DB::handle_ping(iter.collect::<Vec<RESPData>>()),
-                            "rpush" => DB::handle_ping(iter.collect::<Vec<RESPData>>()),
-                            "save" => DB::handle_ping(iter.collect::<Vec<RESPData>>()),
+                            "ping" => DB::handle_ping_echo(
+                                command.as_str(),
+                                iter.collect::<Vec<RESPData>>(),
+                            ),
+                            "echo" => DB::handle_ping_echo(
+                                command.as_str(),
+                                iter.collect::<Vec<RESPData>>(),
+                            ),
+                            "set" => self.handle_set(iter.collect::<Vec<RESPData>>()),
+                            "get" => self.handle_get(iter.collect::<Vec<RESPData>>()),
+                            "exists" => self.handle_ping(iter.collect::<Vec<RESPData>>()),
+                            "del" => self.handle_ping(iter.collect::<Vec<RESPData>>()),
+                            "incr" => self.handle_ping(iter.collect::<Vec<RESPData>>()),
+                            "decr" => self.handle_ping(iter.collect::<Vec<RESPData>>()),
+                            "lpush" => self.handle_ping(iter.collect::<Vec<RESPData>>()),
+                            "rpush" => self.handle_ping(iter.collect::<Vec<RESPData>>()),
+                            "save" => self.handle_ping(iter.collect::<Vec<RESPData>>()),
                             _ => RESPData::Error(format!("Invalid command {}!", command)),
                         },
                         _ => RESPData::Error(String::from("Invalid RESP message!")),
@@ -52,7 +58,39 @@ impl DB {
             ))
         }
     }
-    fn handle_ping(args: Vec<RESPData>) -> RESPData {
+
+    fn handle_set(&mut self, args: Vec<RESPData>) -> RESPData {
+        if args.len() != 2 {
+            RESPData::Error(String::from("ERR syntax error"))
+        } else {
+            let key = match &args[0] {
+                RESPData::BulkString(key) => key.to_owned(),
+                _ => return RESPData::Error(String::from("ERR syntax error")),
+            };
+            let val = args[1].copy();
+
+            self.db.insert(key, val);
+            RESPData::SimpleString(String::from("OK"))
+        }
+    }
+
+    fn handle_get(&mut self, args: Vec<RESPData>) -> RESPData {
+        if args.len() != 1 {
+            RESPData::Error(String::from("ERR wrong number of arguments for 'GET' command"))
+        } else {
+            let key = match &args[0] {
+                RESPData::BulkString(key) => key.to_owned(),
+                _ => return RESPData::Error(String::from("ERR syntax error")),
+            };
+
+            match self.db.get(&key) {
+                Some(val) => val.copy(),
+                None => RESPData::Null,
+            }
+        }
+    }
+
+    fn handle_ping(&mut self, args: Vec<RESPData>) -> RESPData {
         if args.len() == 0 {
             RESPData::SimpleString(String::from("PONG"))
         } else if args.len() == 1 {
