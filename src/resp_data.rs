@@ -157,102 +157,21 @@ impl RESPData {
 
         RESPData::Array(array)
     }
+
+    pub fn copy(&self) -> Self {
+        match self {
+            RESPData::SimpleString(str) => RESPData::SimpleString(format!("{}", str)),
+            RESPData::Error(error) => RESPData::Error(format!("{}", error)),
+            RESPData::Integer(int) => RESPData::Integer(*int),
+            RESPData::BulkString(str) => RESPData::BulkString(format!("{}", str)),
+            RESPData::Array(array) => {
+                let mut vec = vec![];
+                for item in array {
+                    vec.push(item.copy());
+                };
+                RESPData::Array(vec)
+            },
+            RESPData::Null => RESPData::Null,
+        }
+    }
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use super::RESPData;
-
-//     #[test]
-//     fn null_bulk_string() {
-//         let message = String::from("$-1\r\n");
-//         assert_eq!(RESPData::new(message), Ok(RESPData::Null));
-//     }
-
-//     #[test]
-//     fn one_element_array() {
-//         let message = String::from("*1\r\n$4\r\nping\r\n");
-//         let should_be = RESPData::Array(vec![RESPData::BulkString(String::from("ping"))]);
-//         assert_eq!(RESPData::new(message), Ok(should_be));
-//     }
-
-//     #[test]
-//     fn two_elements_array() {
-//         let message = String::from("*2\r\n$4\r\necho\r\n$11\r\nhello world\r\n");
-//         let should_be = RESPData::Array(vec![
-//             RESPData::BulkString(String::from("echo")),
-//             RESPData::BulkString(String::from("hello world")),
-//         ]);
-//         assert_eq!(RESPData::new(message), Ok(should_be));
-//     }
-
-//     #[test]
-//     fn another_two_elements_array() {
-//         let message = String::from("*2\r\n$3\r\nget\r\n$3\r\nkey\r\n");
-//         let should_be = RESPData::Array(vec![
-//             RESPData::BulkString(String::from("get")),
-//             RESPData::BulkString(String::from("key")),
-//         ]);
-//         assert_eq!(RESPData::new(message), Ok(should_be));
-//     }
-
-//     #[test]
-//     fn simple_string() {
-//         let message = String::from("+OK\r\n");
-//         assert_eq!(
-//             RESPData::new(message),
-//             Ok(RESPData::SimpleString(String::from("OK")))
-//         );
-//     }
-
-//     #[test]
-//     fn error() {
-//         let message = String::from("-Error message\r\n");
-//         assert_eq!(
-//             RESPData::new(message),
-//             Ok(RESPData::Error(String::from("Error message")))
-//         );
-//     }
-
-//     #[test]
-//     fn empty_bulk_string() {
-//         let message = String::from("$0\r\n\r\n");
-//         assert_eq!(
-//             RESPData::new(message),
-//             Ok(RESPData::BulkString(String::from("")))
-//         );
-//     }
-
-//     #[test]
-//     fn another_simple_string() {
-//         let message = String::from("+hello world\r\n");
-//         assert_eq!(
-//             RESPData::new(message),
-//             Ok(RESPData::SimpleString(String::from("hello world")))
-//         );
-//     }
-
-//     #[test]
-//     fn integer() {
-//         let message = String::from(":19\r\n");
-//         assert_eq!(RESPData::new(message), Ok(RESPData::Integer(19)));
-//     }
-
-//     #[test]
-//     fn invalid_data_type() {
-//         let message = String::from("#19\r\n");
-//         assert_eq!(
-//             RESPData::new(message),
-//             Err(String::from("Invalid Data Type!!"))
-//         );
-//     }
-
-//     #[test]
-//     fn invalid_integer() {
-//         let message = String::from(":Hello world\r\n");
-//         assert_eq!(
-//             RESPData::new(message),
-//             Err(String::from("Invalid integer!"))
-//         );
-//     }
-// }
