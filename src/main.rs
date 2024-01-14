@@ -1,11 +1,13 @@
-mod message;
+mod resp;
+mod resp_data;
 
 use std::{
     io::{Read, Write},
     net::{Shutdown, TcpListener},
 };
 
-use message::Message;
+use resp::RESP;
+use resp_data::RESPData;
 
 fn main() -> std::io::Result<()> {
     let listener = TcpListener::bind("127.0.0.1:6379")?;
@@ -20,43 +22,22 @@ fn main() -> std::io::Result<()> {
             std::borrow::Cow::Owned(str) => str,
         };
 
-        let message_output = match Command::parse_command(message_input) {
-            Ok(command) => {
-                println!("{}", command.command);
-                println!("{:?}", command.args);
-                command.command
-            },
-            Err(err) => err,
-        };
+        let message_output = RESP::deserialize(message_input);
 
+        let simple_string = RESPData::SimpleString(String::from("Simple String"));
+        let error = RESPData::Error(String::from("Error"));
+        let integer = RESPData::Integer(100);
+        let bulk_string = RESPData::BulkString(String::from("Bulk Stirng"));
+        let array = RESPData::Array(vec![
+            RESPData::SimpleString(String::from("Element 1")),
+            RESPData::SimpleString(String::from("Element 2")),
+        ]);
         stream
-            .write(format!("+{}\r\n", message_output).as_bytes())
+            .write(format!("{}", array).as_bytes())
             .unwrap();
 
         stream.shutdown(Shutdown::Both).unwrap();
     }
 
     Ok(())
-}
-
-struct Command {
-    command: String,
-    args: Vec<Message>,
-}
-
-impl Command {
-    fn parse_command(raw_message: String) -> Result<Self, String> {
-        if let Ok(Message::Array(message)) = Message::new(raw_message) {
-            let mut tokens = message.into_iter();
-            Ok(Command {
-                command: match tokens.next().unwrap() {
-                    Message::BulkString(command) => command,
-                    _ => return Err(String::from("Invalid message!")),
-                },
-                args: tokens.collect::<Vec<Message>>(),
-            })
-        } else {
-            Err(String::from("-Invalid\r\n"))
-        }
-    }
 }
