@@ -32,8 +32,8 @@ impl DB {
                             "del" => self.handle_del(iter.collect::<Vec<RESPData>>()),
                             "incr" => self.handle_incr(iter.collect::<Vec<RESPData>>()),
                             "decr" => self.handle_decr(iter.collect::<Vec<RESPData>>()),
-                            "lpush" => self.handle_ping(iter.collect::<Vec<RESPData>>()),
-                            "rpush" => self.handle_ping(iter.collect::<Vec<RESPData>>()),
+                            "lpush" => self.handle_lpush(iter.collect::<Vec<RESPData>>()),
+                            "rpush" => self.handle_rpush(iter.collect::<Vec<RESPData>>()),
                             "save" => self.handle_ping(iter.collect::<Vec<RESPData>>()),
                             _ => RESPData::Error(format!("Invalid command {}!", command)),
                         },
@@ -167,7 +167,8 @@ impl DB {
             1
         };
 
-        self.db.insert(key, RESPData::BulkString(format!("{}", new_val)));
+        self.db
+            .insert(key, RESPData::BulkString(format!("{}", new_val)));
         RESPData::Integer(new_val)
     }
 
@@ -202,8 +203,61 @@ impl DB {
             -1
         };
 
-        self.db.insert(key, RESPData::BulkString(format!("{}", new_val)));
+        self.db
+            .insert(key, RESPData::BulkString(format!("{}", new_val)));
         RESPData::Integer(new_val)
+    }
+
+    fn handle_lpush(&mut self, args: Vec<RESPData>) -> RESPData {
+        if args.len() < 2 {
+            return RESPData::Error(String::from(
+                "ERR wrong number of arguments for 'LPUSH' command",
+            ));
+        }
+
+        let mut iter = args.into_iter();
+
+        let key = match iter.next().unwrap() {
+            RESPData::BulkString(key) => key,
+            _ => return RESPData::Error(String::from("Invalid message!")),
+        };
+
+        let mut arr = iter.collect::<Vec<RESPData>>();
+        arr.reverse();
+
+        if let Some(RESPData::Array(array)) = self.db.get_mut(&key) {
+            for item in arr {
+                array.insert(0, item);
+            }
+        } else {
+            self.db.insert(key, RESPData::Array(arr));
+        }
+
+        RESPData::SimpleString(String::from("OK"))
+    }
+
+    fn handle_rpush(&mut self, args: Vec<RESPData>) -> RESPData {
+        if args.len() < 2 {
+            return RESPData::Error(String::from(
+                "ERR wrong number of arguments for 'LPUSH' command",
+            ));
+        }
+
+        let mut iter = args.into_iter();
+
+        let key = match iter.next().unwrap() {
+            RESPData::BulkString(key) => key,
+            _ => return RESPData::Error(String::from("Invalid message!")),
+        };
+
+        if let Some(RESPData::Array(array)) = self.db.get_mut(&key) {
+            array.append(&mut iter.collect::<Vec<RESPData>>());
+        } else {
+            self.db
+                .insert(key, RESPData::Array(iter.collect::<Vec<RESPData>>()));
+        }
+
+        RESPData::SimpleString(String::from("OK"))
     }
 
     fn handle_ping(&mut self, args: Vec<RESPData>) -> RESPData {
