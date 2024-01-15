@@ -29,7 +29,7 @@ impl DB {
                             "set" => self.handle_set(iter.collect::<Vec<RESPData>>()),
                             "get" => self.handle_get(iter.collect::<Vec<RESPData>>()),
                             "exists" => self.handle_exists(iter.collect::<Vec<RESPData>>()),
-                            "del" => self.handle_ping(iter.collect::<Vec<RESPData>>()),
+                            "del" => self.handle_del(iter.collect::<Vec<RESPData>>()),
                             "incr" => self.handle_ping(iter.collect::<Vec<RESPData>>()),
                             "decr" => self.handle_ping(iter.collect::<Vec<RESPData>>()),
                             "lpush" => self.handle_ping(iter.collect::<Vec<RESPData>>()),
@@ -112,6 +112,28 @@ impl DB {
         }
 
         RESPData::Integer(keys_exist)
+    }
+
+    fn handle_del(&mut self, args: Vec<RESPData>) -> RESPData {
+        if args.len() == 0 {
+            return RESPData::Error(String::from(
+                "ERR wrong number of arguments for 'DEL' command",
+            ));
+        }
+
+        let mut deleted_keys = 0;
+        for key in args {
+            match key {
+                RESPData::BulkString(key) => {
+                    if self.db.remove(&key).is_some() {
+                        deleted_keys += 1;
+                    }
+                }
+                _ => return RESPData::Error(String::from("ERR syntax error.")),
+            }
+        }
+
+        RESPData::Integer(deleted_keys)
     }
 
     fn handle_ping(&mut self, args: Vec<RESPData>) -> RESPData {
