@@ -30,7 +30,7 @@ impl DB {
                             "get" => self.handle_get(iter.collect::<Vec<RESPData>>()),
                             "exists" => self.handle_exists(iter.collect::<Vec<RESPData>>()),
                             "del" => self.handle_del(iter.collect::<Vec<RESPData>>()),
-                            "incr" => self.handle_ping(iter.collect::<Vec<RESPData>>()),
+                            "incr" => self.handle_incr(iter.collect::<Vec<RESPData>>()),
                             "decr" => self.handle_ping(iter.collect::<Vec<RESPData>>()),
                             "lpush" => self.handle_ping(iter.collect::<Vec<RESPData>>()),
                             "rpush" => self.handle_ping(iter.collect::<Vec<RESPData>>()),
@@ -134,6 +134,41 @@ impl DB {
         }
 
         RESPData::Integer(deleted_keys)
+    }
+
+    fn handle_incr(&mut self, args: Vec<RESPData>) -> RESPData {
+        if args.len() != 1 {
+            return RESPData::Error(String::from(
+                "ERR wrong number of arguments for 'INCR' command",
+            ));
+        }
+
+        let key = if let Some(RESPData::BulkString(key)) = args.get(0) {
+            key.clone()
+        } else {
+            String::new()
+        };
+
+        let new_val = if let Some(val) = self.db.get(&key) {
+            let val = match val.copy() {
+                RESPData::BulkString(val) => val,
+                _ => return RESPData::Error(String::from("Invalid message!")),
+            };
+
+            match val.parse::<i32>() {
+                Ok(val) => val + 1,
+                Err(_) => {
+                    return RESPData::Error(String::from(
+                        "ERR value is not an integer or out of range",
+                    ))
+                }
+            }
+        } else {
+            1
+        };
+
+        self.db.insert(key, RESPData::BulkString(format!("{}", new_val)));
+        RESPData::Integer(new_val)
     }
 
     fn handle_ping(&mut self, args: Vec<RESPData>) -> RESPData {

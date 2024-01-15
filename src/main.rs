@@ -38,5 +38,3 @@ fn main() -> std::io::Result<()> {
 
     Ok(())
 }
-
-// Please commit
