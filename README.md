@@ -23,4 +23,3 @@ Accepts an array of bulk strings and returns a RESP message of the following typ
 - `DECR`: Decrement a stored number by one.
 - `LPUSH`: Insert all the values at the head of a list.
 - `RPUSH`: Insert all the values at the tail of a list.
-- `SAVE`: Save the database state to disk, you should also implement load on startup alongside this.

@@ -34,7 +34,6 @@ impl DB {
                             "decr" => self.handle_decr(iter.collect::<Vec<RESPData>>()),
                             "lpush" => self.handle_lpush(iter.collect::<Vec<RESPData>>()),
                             "rpush" => self.handle_rpush(iter.collect::<Vec<RESPData>>()),
-                            "save" => self.handle_ping(iter.collect::<Vec<RESPData>>()),
                             _ => RESPData::Error(format!("Invalid command {}!", command)),
                         },
                         _ => RESPData::Error(String::from("Invalid RESP message!")),
@@ -259,27 +258,4 @@ impl DB {
 
         RESPData::SimpleString(String::from("OK"))
     }
-
-    fn handle_ping(&mut self, args: Vec<RESPData>) -> RESPData {
-        if args.len() == 0 {
-            RESPData::SimpleString(String::from("PONG"))
-        } else if args.len() == 1 {
-            RESPData::BulkString(format!("{}", args[0]))
-        } else {
-            RESPData::Error(String::from(
-                "ERR wrong number of arguments for 'ping' command",
-            ))
-        }
-    }
 }
-// - `PING`: Checks if connection is established.
-// - `ECHO`: Similar to `PING`.
-// - `SET`: Sets a value to a key.
-// - `GET`: Returns a the value of a given key.
-// - `EXISTS`: Check if a key is present.
-// - `DEL`: Delete one or more keys.
-// - `INCR`: Increment a stored number by one.
-// - `DECR`: Decrement a stored number by one.
-// - `LPUSH`: Insert all the values at the head of a list.
-// - `RPUSH`: Insert all the values at the tail of a list.
-// - `SAVE`: Save the database state to disk, you should also implement load on startup alongside this.
